@@ -11,6 +11,7 @@
     "soc-livejournal": "soc-LiveJournal1",
     "movielens-small": "movielens-small",
     "osm-singapore": "osm-road-networks/singapore",
-    "osm-quanzhou": "osm-road-networks/quanzhou"
+    "osm-quanzhou": "osm-road-networks/quanzhou",
+    "soc-twitter": "soc-twitter"
   }
 }

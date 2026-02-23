@@ -1,6 +1,7 @@
 package com.graphbench.neo4j;
 
 import com.graphbench.api.CsvGraphReader;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.api.TypeConverter;
 import org.neo4j.graphdb.*;
@@ -23,7 +24,7 @@ public class Neo4jGraphLoader {
     private final boolean doLoadProperty;
 
     /** After loading, contains origin ID -> Neo4j internal node ID mapping */
-    private final Map<Long, Long> nodeIdsMap = new HashMap<>();
+    private NodeIdMapping<Long> nodeIdMapping;
     private CsvGraphReader.CsvMetadata metadata;
 
     public Neo4jGraphLoader(GraphDatabaseService db, ProgressCallback progressCallback, boolean doLoadProperty) {
@@ -40,7 +41,10 @@ public class Neo4jGraphLoader {
         // Read metadata first so we can use it during loading
         metadata = CsvGraphReader.readHeaders(datasetPath);
 
-        nodeIdsMap.clear();
+        // Pre-allocate node ID mapping
+        int nodeCount = NodeIdMapping.countNodesFromCSV(datasetPath);
+        nodeIdMapping = new NodeIdMapping<>(nodeCount, Long.MAX_VALUE, progressCallback);
+
         RelationshipType relType = RelationshipType.withName("MyEdge");
         int[] edgeCount = {0};
         int[] opsInTx = {0};
@@ -49,7 +53,8 @@ public class Neo4jGraphLoader {
         CsvGraphReader.read(datasetPath,
             (nodeId, properties) -> {
                 Node node = txHolder[0].createNode(Label.label(NODE_LABEL));
-                nodeIdsMap.put(nodeId, node.getId());
+                nodeIdMapping.set(nodeId, node.getId());
+
                 if (doLoadProperty) {
                     for (Map.Entry<String, String> e : properties.entrySet()) {
                         Class<?> targetType = metadata.getNodePropertyType(e.getKey());
@@ -66,12 +71,13 @@ public class Neo4jGraphLoader {
                 }
             },
             (srcId, dstId, properties) -> {
-                Long srcInternal = nodeIdsMap.get(srcId);
-                Long dstInternal = nodeIdsMap.get(dstId);
-                if (srcInternal == null || dstInternal == null) return;
+                Long srcInternal = nodeIdMapping.get(srcId, "src");
+                Long dstInternal = nodeIdMapping.get(dstId, "dst");
+
                 Node srcNode = txHolder[0].getNodeById(srcInternal);
                 Node dstNode = txHolder[0].getNodeById(dstInternal);
                 Relationship rel = srcNode.createRelationshipTo(dstNode, relType);
+
                 if (doLoadProperty) {
                     for (Map.Entry<String, String> e : properties.entrySet()) {
                         Class<?> targetType = metadata.getEdgePropertyType(e.getKey());
@@ -94,7 +100,6 @@ public class Neo4jGraphLoader {
         txHolder[0].close();
 
         double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-        int nodeCount = nodeIdsMap.size();
         progressCallback.sendLogMessage("Loaded " + nodeCount + " nodes and " + edgeCount[0] + " edges", "INFO");
 
         Map<String, Object> result = new HashMap<>();
@@ -108,7 +113,7 @@ public class Neo4jGraphLoader {
         return result;
     }
 
-    public Map<Long, Long> getNodeIdsMap() { return nodeIdsMap; }
+    public NodeIdMapping<Long> getNodeIdMapping() { return nodeIdMapping; }
 
     public CsvGraphReader.CsvMetadata getMetadata() { return metadata; }
 

@@ -1,6 +1,7 @@
 package com.graphbench.orientdb;
 
 import com.graphbench.api.CsvGraphReader;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.api.TypeConverter;
 import com.orientechnologies.orient.core.db.ODatabaseSession;
@@ -27,7 +28,7 @@ public class OrientDBGraphLoader {
     private final boolean doLoadProperty;
 
     /** After loading, contains origin ID -> OrientDB RID mapping */
-    private final Map<Long, Object> nodeIdsMap = new HashMap<>();
+    private NodeIdMapping<Object> nodeIdMapping;
     private CsvGraphReader.CsvMetadata metadata;
 
     public OrientDBGraphLoader(ODatabaseSession db, ProgressCallback progressCallback, boolean doLoadProperty) {
@@ -44,7 +45,10 @@ public class OrientDBGraphLoader {
         // Read metadata first so we can use it during loading
         metadata = CsvGraphReader.readHeaders(datasetPath);
 
-        nodeIdsMap.clear();
+        // Pre-allocate node ID mapping
+        int nodeCount = NodeIdMapping.countNodesFromCSV(datasetPath);
+        nodeIdMapping = new NodeIdMapping<>(nodeCount, null, progressCallback);
+
         int[] edgeCount = {0};
         int[] opsInTx = {0};
         boolean[] inTransaction = {false};
@@ -66,7 +70,7 @@ public class OrientDBGraphLoader {
                     }
                 }
                 vertex.save();
-                nodeIdsMap.put(nodeId, vertex.getIdentity());
+                nodeIdMapping.set(nodeId, vertex.getIdentity());
                 opsInTx[0]++;
                 if (opsInTx[0] >= BATCH_SIZE) {
                     db.commit();
@@ -79,9 +83,8 @@ public class OrientDBGraphLoader {
                     db.begin();
                     inTransaction[0] = true;
                 }
-                Object srcRID = nodeIdsMap.get(srcId);
-                Object dstRID = nodeIdsMap.get(dstId);
-                if (srcRID == null || dstRID == null) return;
+                Object srcRID = nodeIdMapping.get(srcId, "src");
+                Object dstRID = nodeIdMapping.get(dstId, "dst");
                 OVertex srcVertex = db.load((com.orientechnologies.orient.core.id.ORID) srcRID);
                 OVertex dstVertex = db.load((com.orientechnologies.orient.core.id.ORID) dstRID);
                 OEdge edge = srcVertex.addEdge(dstVertex, EDGE_CLASS);
@@ -110,7 +113,6 @@ public class OrientDBGraphLoader {
         }
 
         double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-        int nodeCount = nodeIdsMap.size();
         progressCallback.sendLogMessage("Loaded " + nodeCount + " nodes and " + edgeCount[0] + " edges", "INFO");
 
         Map<String, Object> result = new HashMap<>();
@@ -124,7 +126,7 @@ public class OrientDBGraphLoader {
         return result;
     }
 
-    public Map<Long, Object> getNodeIdsMap() { return nodeIdsMap; }
+    public NodeIdMapping<Object> getNodeIdMapping() { return nodeIdMapping; }
 
     public CsvGraphReader.CsvMetadata getMetadata() { return metadata; }
 

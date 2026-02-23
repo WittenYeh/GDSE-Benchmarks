@@ -5,6 +5,7 @@
 #include <graphbench/benchmark_executor.hpp>
 #include <graphbench/progress_callback.hpp>
 #include <graphbench/benchmark_utils.hpp>
+#include <graphbench/node_id_mapping.hpp>
 #include <nlohmann/json.hpp>
 #include <map>
 #include <string>
@@ -96,7 +97,7 @@ public:
     std::map<std::string, std::any> loadGraphImpl(const std::string& datasetPath) {
         ArangoDBGraphLoader loader(arangoUtils_, DB_NAME, progressCallback_, false);
         auto result = loader.load(datasetPath);
-        nodeIdsMap_ = loader.getNodeIdsMap();
+        nodeIdMapping_ = std::make_unique<NodeIdMapping<std::string>>(loader.getNodeIdMapping());
         return result;
     }
 
@@ -244,9 +245,12 @@ public:
      * Get system ID (ArangoDB document key) from origin ID.
      */
     std::any getSystemIdImpl(int64_t originId) const {
-        auto it = nodeIdsMap_.find(originId);
-        if (it != nodeIdsMap_.end()) {
-            return it->second;
+        if (nodeIdMapping_) {
+            bool found = false;
+            auto result = nodeIdMapping_->get_or_default(originId, &found);
+            if (found) {
+                return result;
+            }
         }
         return std::any();
     }
@@ -269,7 +273,7 @@ protected:
     std::string snapshotPath_;
     std::shared_ptr<ArangoDBClient> arangoUtils_;
     std::shared_ptr<ProgressCallback> progressCallback_;
-    std::map<int64_t, std::string> nodeIdsMap_;
+    std::unique_ptr<NodeIdMapping<std::string>> nodeIdMapping_;
     int errorCount_;
 
     /**

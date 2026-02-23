@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from rich.console import Console
+from rich.table import Table
 
 
 def load_report(filepath: Path) -> Dict[str, Any]:
@@ -139,8 +141,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument('--database', nargs='+', required=True,
-                        help='Database name(s) to compare')
+    parser.add_argument('--database', required=True,
+                        help='Database name(s) to compare (comma-separated, e.g., neo4j,janusgraph)')
 
     parser.add_argument('--workload', required=True,
                         help='Workload configuration name (e.g., example_workload)')
@@ -155,6 +157,9 @@ def main():
                         help='Output directory for plots')
 
     args = parser.parse_args()
+
+    # Parse comma-separated database values
+    args.database = [db.strip() for db in args.database.split(',')]
 
     # Setup paths
     reports_dir = Path(args.reports_dir)
@@ -175,6 +180,27 @@ def main():
         sys.exit(1)
 
     print(f"✓ Found {len(reports)} report(s)")
+    print()
+
+    # Display reports table
+    console = Console()
+    table = Table(title="📋 Found Reports", show_header=True, header_style="bold magenta")
+    table.add_column("Filename", style="blue")
+    table.add_column("Dataset", style="cyan", no_wrap=True)
+    table.add_column("Workload", style="green")
+    table.add_column("Database", style="yellow")
+
+    # Sort by dataset, workload, database for consistent ordering
+    report_entries = []
+    for db_name in sorted(reports.keys()):
+        filename = f"bench_{db_name}_{args.dataset}_{args.workload}.json"
+        report_entries.append((args.dataset, args.workload, db_name, filename))
+
+    for dataset, workload, database, filename in sorted(report_entries):
+        table.add_row(filename, dataset, workload, database)
+
+    console.print(table)
+    print()
 
     # Extract batch data for each database
     all_task_data = {}

@@ -3,6 +3,7 @@
 #include <graphbench/benchmark_executor.hpp>
 #include <graphbench/progress_callback.hpp>
 #include <graphbench/benchmark_utils.hpp>
+#include <graphbench/node_id_mapping.hpp>
 #include "aster_graph_loader.hpp"
 #include <rocksdb/db.h>
 #include <rocksdb/graph.h>
@@ -262,9 +263,12 @@ public:
     }
 
     std::any getSystemIdImpl(int64_t originId) const {
-        auto it = originToSystemId_.find(originId);
-        if (it != originToSystemId_.end()) {
-            return it->second;
+        if (nodeIdMapping_) {
+            bool found = false;
+            auto result = nodeIdMapping_->get_or_default(originId, &found);
+            if (found) {
+                return result;
+            }
         }
         return std::any();
     }
@@ -284,7 +288,7 @@ protected:
     std::unique_ptr<ProgressCallback> progressCallback_;
     int errorCount_;
     node_id_t nextVertexId_ = 1;
-    std::map<int64_t, node_id_t> originToSystemId_;
+    std::unique_ptr<NodeIdMapping<node_id_t>> nodeIdMapping_;
 
     template<typename ExecutorType>
     friend class AsterGraphLoader;

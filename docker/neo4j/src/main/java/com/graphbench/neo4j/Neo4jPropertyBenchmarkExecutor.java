@@ -20,7 +20,7 @@ public class Neo4jPropertyBenchmarkExecutor extends Neo4jBenchmarkExecutor
     public Map<String, Object> loadGraph(String datasetPath) throws Exception {
         Neo4jGraphLoader loader = new Neo4jGraphLoader(db, progressCallback, true);
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         loader.createPropertyIndexes(loader.getMetadata());
         return result;
     }

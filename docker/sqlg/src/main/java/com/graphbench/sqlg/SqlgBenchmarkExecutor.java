@@ -1,6 +1,7 @@
 package com.graphbench.sqlg;
 
 import com.graphbench.api.BenchmarkExecutor;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.BenchmarkUtils;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.workload.*;
@@ -28,7 +29,7 @@ public class SqlgBenchmarkExecutor implements BenchmarkExecutor {
     protected int errorCount = 0;
     protected ProgressCallback progressCallback;
     protected final Blackhole blackhole = new Blackhole("Today's password is swordfish. I understand instantiating Blackholes directly is dangerous.");
-    protected Map<Long, Object> nodeIdsMap = new HashMap<>();
+    protected NodeIdMapping<Object> nodeIdMapping;
 
     public SqlgBenchmarkExecutor() {
         this.progressCallback = new ProgressCallback(System.getenv("PROGRESS_CALLBACK_URL"));
@@ -86,7 +87,7 @@ public class SqlgBenchmarkExecutor implements BenchmarkExecutor {
     public Map<String, Object> loadGraph(String datasetPath) throws Exception {
         SqlgGraphLoader loader = new SqlgGraphLoader(graph, g, progressCallback, false);
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         return result;
     }
 
@@ -202,7 +203,7 @@ public class SqlgBenchmarkExecutor implements BenchmarkExecutor {
 
     @Override
     public Object getSystemId(Long originId) {
-        return nodeIdsMap.get(originId);
+        return nodeIdMapping.getOrNull(originId);
     }
 
     @Override

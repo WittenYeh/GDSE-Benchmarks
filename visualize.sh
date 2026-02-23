@@ -21,19 +21,37 @@ Commands:
   help            Show this help message
 
 Batch Size Comparison:
-  $0 batchsize --database DB1 [DB2 ...] --workload WORKLOAD --dataset DATASET [--output-dir DIR]
+  bash $0 batchsize --database DB1,DB2,... --workload WORKLOAD --dataset DATASET [--output-dir DIR]
 
 Performance Comparison:
-  $0 performance --database DB1 [DB2 ...] --workload WORKLOAD --dataset DS1 [DS2 ...] [--output-dir DIR]
+  bash $0 performance --database DB1,DB2,... --workload WORKLOAD --dataset DS1,DS2,... [--output-dir DIR]
 
 Examples:
   # Batch size comparison for a single dataset
-  $0 batchsize --database neo4j janusgraph --workload example_workload --dataset delaunay_n13
+  bash $0 batchsize --database neo4j,janusgraph --workload example_workload --dataset delaunay_n13
 
   # Performance comparison across multiple datasets
-  $0 performance --database neo4j janusgraph --workload example_workload --dataset delaunay_n13 movielens-small
+  bash $0 performance --database neo4j,janusgraph --workload example_workload --dataset delaunay_n13,movielens-small
 
-For more examples, see: visualize/examples.sh
+Examples:
+  # Batch size comparison for a single dataset
+  bash $0 batchsize \\
+    --database neo4j,janusgraph,orientdb,sqlg,arangodb \\
+    --workload batchsize_comparison \\
+    --dataset coAuthorsDBLP
+  # Performance comparison across multiple datasets
+  bash $0 performance \\
+    --database neo4j,janusgraph,orientdb,sqlg,arangodb,aster \\
+    --workload small_structural_workload \\
+    --dataset delaunay_n13,movielens-small
+  bash $0 performance \\
+    --database neo4j,janusgraph,orientdb,sqlg,arangodb,aster \\
+    --workload medium_structural_workload \\
+    --dataset delaunay_n21,cit-Patents,coAuthorsDBLP
+  bash $0 performance \\
+    --database neo4j,janusgraph,orientdb,sqlg,arangodb,aster \\
+    --workload large_structural_workload \\
+    --dataset hollywood-2009,soc-twitter,soc-orkut,soc-livejournal
 
 EOF
     exit 0

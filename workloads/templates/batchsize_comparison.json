@@ -1,5 +1,5 @@
 {
-  "name": "example_workload",
+  "name": "batchsize_comparison",
   "mode": "structural",
   "server_config": {
     "threads": 1

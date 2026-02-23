@@ -30,7 +30,7 @@ public class SqlgPropertyBenchmarkExecutor extends SqlgBenchmarkExecutor impleme
         // Load graph with properties
         SqlgGraphLoader loader = new SqlgGraphLoader(graph, g, progressCallback, true);
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         csvMetadata = loader.getMetadata();
 
         return result;

@@ -24,7 +24,7 @@ public class OrientDBPropertyBenchmarkExecutor extends OrientDBBenchmarkExecutor
     public Map<String, Object> loadGraph(String datasetPath) throws Exception {
         OrientDBGraphLoader loader = new OrientDBGraphLoader(db, progressCallback, true);
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         loader.createPropertyIndexes(loader.getMetadata());
         return result;
     }

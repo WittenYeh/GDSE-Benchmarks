@@ -61,6 +61,11 @@ class BenchmarkLauncher:
             return [self.args.workload_name]
         return [self.args.workload_config]
 
+    def _check_report_exists(self, database_name: str, dataset_name: str, workload_name: str) -> bool:
+        """Check if a report already exists for the given combination"""
+        report_file = self.output_dir / f"bench_{database_name}_{dataset_name}_{workload_name}.json"
+        return report_file.exists()
+
     def run(self):
         """Main execution flow"""
         print(f"🚀 Starting benchmark for databases: {', '.join(self.database_names)}")
@@ -99,6 +104,10 @@ class BenchmarkLauncher:
             # Get datasets to test
             datasets = self._get_datasets_to_test()
 
+            # Calculate total number of tasks
+            total_tasks = len(datasets) * len(self.database_names)
+            current_task = 0
+
             # Outer loop: iterate over datasets
             for dataset_name in datasets:
                 print(f"\n{'='*80}")
@@ -123,9 +132,17 @@ class BenchmarkLauncher:
 
                 # Inner loop: iterate over databases using the same compiled workload
                 for database_name in self.database_names:
+                    current_task += 1
                     print(f"\n{'-'*80}")
-                    print(f"🗄️  Database: {database_name}")
+                    print(f"🗄️  Database: {database_name} ({current_task}/{total_tasks})")
                     print(f"{'-'*80}")
+
+                    # Check if report already exists
+                    if not self.args.force_rerun and self._check_report_exists(database_name, dataset_name, workload_name):
+                        report_file = self.output_dir / f"bench_{database_name}_{dataset_name}_{workload_name}.json"
+                        print(f"⏭️  Skipping: Report already exists at {report_file}")
+                        print(f"   Use --force-rerun to override")
+                        continue
 
                     db_config = self.database_config[database_name]
 
@@ -233,6 +250,9 @@ def main():
 
     parser.add_argument('--rebuild', action='store_true',
                         help='Force rebuild the Docker image')
+
+    parser.add_argument('--force-rerun', action='store_true',
+                        help='Force rerun benchmarks even if reports already exist')
 
     args = parser.parse_args()
 

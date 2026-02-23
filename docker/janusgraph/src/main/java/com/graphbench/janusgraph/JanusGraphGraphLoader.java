@@ -1,6 +1,7 @@
 package com.graphbench.janusgraph;
 
 import com.graphbench.api.CsvGraphReader;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.api.TypeConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -31,7 +32,7 @@ public class JanusGraphGraphLoader {
     private final ProgressCallback progressCallback;
     private final boolean doLoadProperty;
 
-    private final Map<Long, Object> nodeIdsMap = new HashMap<>();
+    private NodeIdMapping<Object> nodeIdMapping;
     private CsvGraphReader.CsvMetadata metadata;
 
     public JanusGraphGraphLoader(JanusGraph graph, GraphTraversalSource g, ProgressCallback progressCallback, boolean doLoadProperty) {
@@ -49,14 +50,18 @@ public class JanusGraphGraphLoader {
         // Read metadata first so we can use it during loading
         metadata = CsvGraphReader.readHeaders(datasetPath);
 
-        nodeIdsMap.clear();
+        // Pre-allocate node ID mapping
+        int nodeCount = NodeIdMapping.countNodesFromCSV(datasetPath);
+        nodeIdMapping = new NodeIdMapping<>(nodeCount, null, progressCallback);
+
         int[] edgeCount = {0};
         int[] opsInTx = {0};
 
         CsvGraphReader.read(datasetPath,
             (nodeId, properties) -> {
                 Vertex v = g.addV(NODE_LABEL).next();
-                nodeIdsMap.put(nodeId, v.id());
+                nodeIdMapping.set(nodeId, v.id());
+
                 if (doLoadProperty) {
                     for (Map.Entry<String, String> e : properties.entrySet()) {
                         Class<?> targetType = metadata.getNodePropertyType(e.getKey());
@@ -73,9 +78,9 @@ public class JanusGraphGraphLoader {
                 }
             },
             (srcId, dstId, properties) -> {
-                Object srcInternal = nodeIdsMap.get(srcId);
-                Object dstInternal = nodeIdsMap.get(dstId);
-                if (srcInternal == null || dstInternal == null) return;
+                Object srcInternal = nodeIdMapping.get(srcId, "src");
+                Object dstInternal = nodeIdMapping.get(dstId, "dst");
+
                 Edge edge = g.V(srcInternal).addE("MyEdge").to(__.V(dstInternal)).next();
                 if (doLoadProperty) {
                     for (Map.Entry<String, String> e : properties.entrySet()) {
@@ -98,7 +103,6 @@ public class JanusGraphGraphLoader {
         g.tx().commit();
 
         double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-        int nodeCount = nodeIdsMap.size();
         progressCallback.sendLogMessage("Loaded " + nodeCount + " nodes and " + edgeCount[0] + " edges", "INFO");
 
         Map<String, Object> result = new HashMap<>();
@@ -112,7 +116,7 @@ public class JanusGraphGraphLoader {
         return result;
     }
 
-    public Map<Long, Object> getNodeIdsMap() { return nodeIdsMap; }
+    public NodeIdMapping<Object> getNodeIdMapping() { return nodeIdMapping; }
 
     public CsvGraphReader.CsvMetadata getMetadata() { return metadata; }
 

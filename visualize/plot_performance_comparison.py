@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from rich.console import Console
+from rich.table import Table
 
 
 def load_report(filepath: Path) -> Dict[str, Any]:
@@ -47,9 +49,9 @@ def find_matching_reports(reports_dir: Path, databases: List[str],
 
 
 def extract_average_latency(report: Dict[str, Any]) -> Dict[str, float]:
-    """Extract average latency for each task type.
+    """Extract best (minimum) latency for each task type.
 
-    For tasks with batch_results, compute the average across all batch sizes.
+    For tasks with batch_results, select the batch size with the lowest latency.
     """
     task_latencies = {}
 
@@ -63,9 +65,9 @@ def extract_average_latency(report: Dict[str, Any]) -> Dict[str, float]:
         batch_results = result.get('batch_results', [])
 
         if batch_results:
-            # Average latency across all batch sizes
-            avg_latency = sum(br['latency_us'] for br in batch_results) / len(batch_results)
-            task_latencies[task_type] = avg_latency
+            # Select the minimum latency across all batch sizes (best performance)
+            min_latency = min(br['latency_us'] for br in batch_results)
+            task_latencies[task_type] = min_latency
 
     return task_latencies
 
@@ -106,7 +108,7 @@ def create_performance_comparison_plot(dataset: str, db_data: Dict[str, Dict[str
             hovertemplate=(
                 f'<b>{db_name}</b><br>' +
                 'Task: %{x}<br>' +
-                'Avg Latency: %{y:.2f} μs<br>' +
+                'Best Latency: %{y:.2f} μs<br>' +
                 '<extra></extra>'
             )
         ))
@@ -114,7 +116,7 @@ def create_performance_comparison_plot(dataset: str, db_data: Dict[str, Dict[str
     # Update layout
     fig.update_layout(
         title=dict(
-            text=f'<b>Performance Comparison</b><br><sub>Dataset: {dataset} | Workload: {workload}</sub>',
+            text=f'<b>Performance Comparison (Best Batch Size)</b><br><sub>Dataset: {dataset} | Workload: {workload}</sub>',
             x=0.5,
             xanchor='center',
             font=dict(size=20)
@@ -126,7 +128,7 @@ def create_performance_comparison_plot(dataset: str, db_data: Dict[str, Dict[str
             showgrid=False
         ),
         yaxis=dict(
-            title='<b>Average Latency (μs)</b>',
+            title='<b>Best Latency (μs)</b>',
             gridcolor='lightgray',
             showgrid=True,
             zeroline=False
@@ -161,14 +163,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument('--database', nargs='+', required=True,
-                        help='Database name(s) to compare')
+    parser.add_argument('--database', required=True,
+                        help='Database name(s) to compare (comma-separated, e.g., neo4j,janusgraph)')
 
     parser.add_argument('--workload', required=True,
                         help='Workload configuration name (e.g., example_workload)')
 
-    parser.add_argument('--dataset', nargs='+', required=True,
-                        help='Dataset name(s) to plot')
+    parser.add_argument('--dataset', required=True,
+                        help='Dataset name(s) to plot (comma-separated, e.g., delaunay_n13,movielens-small)')
 
     parser.add_argument('--reports-dir', default='reports',
                         help='Directory containing benchmark reports')
@@ -177,6 +179,10 @@ def main():
                         help='Output directory for plots')
 
     args = parser.parse_args()
+
+    # Parse comma-separated values
+    args.database = [db.strip() for db in args.database.split(',')]
+    args.dataset = [ds.strip() for ds in args.dataset.split(',')]
 
     # Setup paths
     reports_dir = Path(args.reports_dir)
@@ -192,6 +198,34 @@ def main():
     # Find matching reports
     reports = find_matching_reports(reports_dir, args.database, args.workload, args.dataset)
 
+    # Count total reports and display table
+    total_reports = sum(len(db_reports) for db_reports in reports.values())
+
+    if total_reports > 0:
+        print(f"✓ Found {total_reports} report(s)")
+        print()
+
+        # Display reports table
+        console = Console()
+        table = Table(title="📋 Found Reports", show_header=True, header_style="bold magenta")
+        table.add_column("Filename", style="blue")
+        table.add_column("Dataset", style="cyan", no_wrap=True)
+        table.add_column("Workload", style="green")
+        table.add_column("Database", style="yellow")
+
+        # Collect and sort all report entries
+        report_entries = []
+        for dataset, db_reports in reports.items():
+            for db_name in db_reports.keys():
+                filename = f"bench_{db_name}_{dataset}_{args.workload}.json"
+                report_entries.append((dataset, args.workload, db_name, filename))
+
+        for dataset, workload, database, filename in sorted(report_entries):
+            table.add_row(filename, dataset, workload, database)
+
+        console.print(table)
+        print()
+
     # Generate one plot per dataset
     plot_count = 0
     for dataset, db_reports in reports.items():
@@ -201,7 +235,7 @@ def main():
 
         print(f"  📈 Generating plot for dataset: {dataset}...")
 
-        # Extract average latencies for each database
+        # Extract best latencies for each database (minimum across all batch sizes)
         db_data = {}
         for db_name, report in db_reports.items():
             task_latencies = extract_average_latency(report)

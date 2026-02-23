@@ -33,7 +33,7 @@ public class JanusGraphPropertyBenchmarkExecutor extends JanusGraphBenchmarkExec
 
         // Load graph data — indexes are now ENABLED and will be populated automatically.
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         return result;
     }
 

@@ -1,6 +1,7 @@
 package com.graphbench.sqlg;
 
 import com.graphbench.api.CsvGraphReader;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.api.TypeConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -23,7 +24,7 @@ public class SqlgGraphLoader {
     private final GraphTraversalSource g;
     private final ProgressCallback progressCallback;
     private final boolean doLoadProperty;
-    private final Map<Long, Object> nodeIdsMap = new HashMap<>();
+    private NodeIdMapping<Object> nodeIdMapping;
     private CsvGraphReader.CsvMetadata metadata;
 
     public SqlgGraphLoader(SqlgGraph graph, GraphTraversalSource g, ProgressCallback progressCallback, boolean doLoadProperty) {
@@ -38,6 +39,10 @@ public class SqlgGraphLoader {
 
         progressCallback.sendLogMessage("Loading graph from CSV...", "INFO");
 
+        // Pre-allocate node ID mapping
+        int totalNodeCount = NodeIdMapping.countNodesFromCSV(datasetPath);
+        nodeIdMapping = new NodeIdMapping<>(totalNodeCount, null, progressCallback);
+
         final int[] nodeCount = {0};
         final int[] edgeCount = {0};
         final int[] batchCount = {0};
@@ -48,7 +53,7 @@ public class SqlgGraphLoader {
             (nodeId, properties) -> {
                 try {
                     Vertex v = g.addV(NODE_LABEL).next();
-                    nodeIdsMap.put(nodeId, v.id());
+                    nodeIdMapping.set(nodeId, v.id());
 
                     if (doLoadProperty && properties != null && !properties.isEmpty()) {
                         for (Map.Entry<String, String> entry : properties.entrySet()) {
@@ -75,32 +80,30 @@ public class SqlgGraphLoader {
             },
             (srcId, dstId, properties) -> {
                 try {
-                    Object srcSystemId = nodeIdsMap.get(srcId);
-                    Object dstSystemId = nodeIdsMap.get(dstId);
+                    Object srcSystemId = nodeIdMapping.get(srcId, "src");
+                    Object dstSystemId = nodeIdMapping.get(dstId, "dst");
 
-                    if (srcSystemId != null && dstSystemId != null) {
-                        org.apache.tinkerpop.gremlin.structure.Edge e =
-                            g.V(srcSystemId).addE(EDGE_LABEL).to(__.V(dstSystemId)).next();
+                    org.apache.tinkerpop.gremlin.structure.Edge e =
+                        g.V(srcSystemId).addE(EDGE_LABEL).to(__.V(dstSystemId)).next();
 
-                        if (doLoadProperty && properties != null && !properties.isEmpty()) {
-                            for (Map.Entry<String, String> entry : properties.entrySet()) {
-                                String key = entry.getKey();
-                                String value = entry.getValue();
-                                if (value != null && !value.isEmpty()) {
-                                    Class<?> targetType = metadata.getEdgePropertyType(key);
-                                    Object convertedValue = TypeConverter.convertFromString(value, targetType);
-                                    e.property(key, convertedValue);
-                                }
+                    if (doLoadProperty && properties != null && !properties.isEmpty()) {
+                        for (Map.Entry<String, String> entry : properties.entrySet()) {
+                            String key = entry.getKey();
+                            String value = entry.getValue();
+                            if (value != null && !value.isEmpty()) {
+                                Class<?> targetType = metadata.getEdgePropertyType(key);
+                                Object convertedValue = TypeConverter.convertFromString(value, targetType);
+                                e.property(key, convertedValue);
                             }
                         }
+                    }
 
-                        edgeCount[0]++;
-                        batchCount[0]++;
+                    edgeCount[0]++;
+                    batchCount[0]++;
 
-                        if (batchCount[0] >= BATCH_SIZE) {
-                            graph.tx().commit();
-                            batchCount[0] = 0;
-                        }
+                    if (batchCount[0] >= BATCH_SIZE) {
+                        graph.tx().commit();
+                        batchCount[0] = 0;
                     }
                 } catch (Exception ex) {
                     throw new RuntimeException("Error loading edge: " + srcId + " -> " + dstId, ex);
@@ -130,8 +133,8 @@ public class SqlgGraphLoader {
         return result;
     }
 
-    public Map<Long, Object> getNodeIdsMap() {
-        return nodeIdsMap;
+    public NodeIdMapping<Object> getNodeIdMapping() {
+        return nodeIdMapping;
     }
 
     public CsvGraphReader.CsvMetadata getMetadata() {

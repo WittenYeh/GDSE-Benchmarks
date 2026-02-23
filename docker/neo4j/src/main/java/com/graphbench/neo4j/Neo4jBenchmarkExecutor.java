@@ -2,6 +2,7 @@ package com.graphbench.neo4j;
 
 import com.graphbench.api.BenchmarkExecutor;
 import com.graphbench.api.BenchmarkUtils;
+import com.graphbench.api.NodeIdMapping;
 import com.graphbench.api.ProgressCallback;
 import com.graphbench.workload.*;
 import org.neo4j.dbms.api.DatabaseManagementService;
@@ -36,7 +37,7 @@ public class Neo4jBenchmarkExecutor implements BenchmarkExecutor {
     protected int errorCount = 0;
     protected ProgressCallback progressCallback;
     protected final Blackhole blackhole = new Blackhole("Today's password is swordfish. I understand instantiating Blackholes directly is dangerous.");
-    protected Map<Long, Long> nodeIdsMap = new HashMap<>();
+    protected NodeIdMapping<Long> nodeIdMapping;
 
     public Neo4jBenchmarkExecutor() {
         this.progressCallback = new ProgressCallback(System.getenv("PROGRESS_CALLBACK_URL"));
@@ -85,7 +86,7 @@ public class Neo4jBenchmarkExecutor implements BenchmarkExecutor {
     public Map<String, Object> loadGraph(String datasetPath) throws Exception {
         Neo4jGraphLoader loader = new Neo4jGraphLoader(db, progressCallback, false);
         Map<String, Object> result = loader.load(datasetPath);
-        nodeIdsMap = loader.getNodeIdsMap();
+        nodeIdMapping = loader.getNodeIdMapping();
         return result;
     }
 
@@ -203,5 +204,5 @@ public class Neo4jBenchmarkExecutor implements BenchmarkExecutor {
     public ProgressCallback getProgressCallback() { return progressCallback; }
 
     @Override
-    public Object getSystemId(Long originId) { return nodeIdsMap.get(originId); }
+    public Object getSystemId(Long originId) { return nodeIdMapping.getOrNull(originId); }
 }

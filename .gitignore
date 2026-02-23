@@ -56,3 +56,5 @@ Thumbs.db
 
 # Test outputs
 /test_reports/
+/reports/
+/plots/

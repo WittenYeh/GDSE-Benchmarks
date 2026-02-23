@@ -3,6 +3,7 @@
 #include "arangodb_client.hpp"
 #include <graphbench/progress_callback.hpp>
 #include <graphbench/benchmark_utils.hpp>
+#include <graphbench/node_id_mapping.hpp>
 #include <csv.hpp>
 #include <map>
 #include <string>
@@ -100,7 +101,7 @@ public:
      * Get the node IDs mapping (originId -> systemId).
      * Used for converting dataset IDs to ArangoDB document keys.
      */
-    const std::map<int64_t, std::string>& getNodeIdsMap() const { return nodeIdsMap_; }
+    const NodeIdMapping<std::string>& getNodeIdMapping() const { return *nodeIdMapping_; }
 
     /**
      * Get CSV metadata containing property type information.
@@ -116,7 +117,7 @@ private:
     std::string dbName_;
     std::shared_ptr<ProgressCallback> progressCallback_;
     bool loadProperties_;
-    std::map<int64_t, std::string> nodeIdsMap_;
+    std::unique_ptr<NodeIdMapping<std::string>> nodeIdMapping_;
     CsvMetadata metadata_;
 
     /**
@@ -128,6 +129,11 @@ private:
      * @return Number of nodes loaded
      */
     int loadNodes(const std::string& nodesFile) {
+        // Pre-allocate node ID mapping
+        std::string datasetPath = nodesFile.substr(0, nodesFile.find_last_of("/\\"));
+        size_t nodeCount = NodeIdMapping<std::string>::count_nodes_from_csv(datasetPath);
+        nodeIdMapping_ = std::make_unique<NodeIdMapping<std::string>>(nodeCount, "", progressCallback_.get());
+
         // Create CSV reader
         csv::CSVReader reader(nodesFile);
 
@@ -144,7 +150,7 @@ private:
             }
         }
 
-        int nodeCount = 0;
+        int loadedCount = 0;
         json nodeBatch = json::array();
 
         // Read CSV rows
@@ -167,8 +173,8 @@ private:
             }
 
             nodeBatch.push_back(nodeDoc);
-            nodeIdsMap_[originId] = vertexKey;
-            nodeCount++;
+            nodeIdMapping_->set(originId, vertexKey);
+            loadedCount++;
 
             // Batch insert when batch size reached
             if (nodeBatch.size() >= LOAD_BATCH_SIZE) {
@@ -182,8 +188,8 @@ private:
             insertBatch(VERTEX_COLLECTION, nodeBatch);
         }
 
-        progressCallback_->sendLogMessage("Loaded " + std::to_string(nodeCount) + " nodes", "INFO");
-        return nodeCount;
+        progressCallback_->sendLogMessage("Loaded " + std::to_string(loadedCount) + " nodes", "INFO");
+        return loadedCount;
     }
 
     /**
@@ -221,16 +227,14 @@ private:
             int64_t srcId = row[0].get<int64_t>();
             int64_t dstId = row[1].get<int64_t>();
 
-            // Skip if nodes don't exist
-            if (nodeIdsMap_.find(srcId) == nodeIdsMap_.end() ||
-                nodeIdsMap_.find(dstId) == nodeIdsMap_.end()) {
-                continue;
-            }
+            // Get internal node keys with validation
+            std::string srcKey = nodeIdMapping_->get(srcId, "src");
+            std::string dstKey = nodeIdMapping_->get(dstId, "dst");
 
             // Build edge document with _from and _to
             json edgeDoc = {
-                {"_from", std::string(VERTEX_COLLECTION) + "/" + nodeIdsMap_[srcId]},
-                {"_to", std::string(VERTEX_COLLECTION) + "/" + nodeIdsMap_[dstId]}
+                {"_from", std::string(VERTEX_COLLECTION) + "/" + srcKey},
+                {"_to", std::string(VERTEX_COLLECTION) + "/" + dstKey}
             };
 
             // Add properties if enabled

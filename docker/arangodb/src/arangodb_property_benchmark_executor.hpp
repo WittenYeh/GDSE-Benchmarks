@@ -24,7 +24,7 @@ public:
         // Load graph with properties enabled
         ArangoDBGraphLoader loader(arangoUtils_, DB_NAME, progressCallback_, true);
         auto result = loader.load(datasetPath);
-        nodeIdsMap_ = loader.getNodeIdsMap();
+        nodeIdMapping_ = std::make_unique<NodeIdMapping<std::string>>(loader.getNodeIdMapping());
         metadata_ = loader.getMetadata();
 
         // Create property indexes for efficient queries
