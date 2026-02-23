@@ -163,7 +163,7 @@ public class JanusGraphBenchmarkExecutor implements BenchmarkExecutor {
     @Override
     public List<Double> addEdge(String label, List<AddEdgeParams.EdgePair> pairs, int batchSize) {
         return transactionalBatchExecute(pairs, pair -> {
-            g.V(pair.getSrcSystemId()).addE(label).to(g.V(pair.getDstSystemId())).iterate();
+            g.V(pair.getSrcSystemId()).addE(label).to(__.V(pair.getDstSystemId())).iterate();
         }, batchSize);
     }
 

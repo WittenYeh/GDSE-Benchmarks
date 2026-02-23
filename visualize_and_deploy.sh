@@ -19,6 +19,11 @@ bash visualize/visualize.sh batchsize \
 
 bash visualize/visualize.sh performance \
     --database neo4j,janusgraph,orientdb,sqlg,arangodb,aster \
+    --workload small_structural_workload \
+    --dataset delaunay_n13,movielens-small,osm-singapore
+
+bash visualize/visualize.sh performance \
+    --database neo4j,janusgraph,orientdb,sqlg,arangodb,aster \
     --workload medium_structural_workload \
     --dataset delaunay_n21,cit-Patents,coAuthorsDBLP
 

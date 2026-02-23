@@ -99,16 +99,13 @@ The benchmark framework consists of two main components:
 
 ## Features
 
-- **Native API Execution**: Direct database API calls (Neo4j Embedded API, TinkerPop Structure API, ArangoDB Fuerte C++ API) instead of query engines
-- **Latency Testing**: Serial execution with per-operation latency tracking in microseconds
-- **10 Benchmark Operations**: ADD_VERTEX, UPSERT_VERTEX_PROPERTY, REMOVE_VERTEX, ADD_EDGE, UPSERT_EDGE_PROPERTY, REMOVE_EDGE, GET_NBRS, GET_VERTEX_BY_PROPERTY, GET_EDGE_BY_PROPERTY, LOAD_GRAPH
-- Support for Neo4j Embedded, JanusGraph with BerkeleyDB backend, and ArangoDB
-- **Multi-Language Support**: Java (Neo4j, JanusGraph) and C++ (ArangoDB) implementations
-- **Static Polymorphism**: C++ implementation uses CRTP for zero-overhead abstraction
-- Optimized graph loading with batch insertion
-- Interactive HTML visualizations with Plotly
-- Docker-based isolation for clean benchmarking
-- Reproducible results with seed support
+- **Native API Execution**: Direct database API calls (Neo4j Embedded API, TinkerPop Structure API, ArangoDB Fuerte C++ API) instead of query engines;
+- **Latency Testing**: Serial execution with per-operation latency tracking in microseconds;
+- **10 Benchmark Operations**: ADD_VERTEX, UPSERT_VERTEX_PROPERTY, REMOVE_VERTEX, ADD_EDGE, UPSERT_EDGE_PROPERTY, REMOVE_EDGE, GET_NBRS, GET_VERTEX_BY_PROPERTY, GET_EDGE_BY_PROPERTY, LOAD_GRAPH;
+- Support for Neo4j Embedded, JanusGraph, ArangoDB, OrientDB, Sqlg, and Aster with native APIs;
+- **Multi-Language Support**: Java (Neo4j, JanusGraph) and C++ (ArangoDB) implementations;
+- Docker-based isolation for clean benchmarking and reproducible results;
+- Interactive HTML visualizations with Plotly;
 
 ## Installation
 

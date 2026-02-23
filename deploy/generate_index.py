@@ -282,16 +282,6 @@ def generate_index_html(plots_dir: Path, reports_dir: Path, output_file: Path):
         <div class="header">
             <h1>📊 GDSE Benchmark</h1>
             <p>Graph Database Storage Engine Benchmark (Native API Latency Test)</p>
-            <div class="stats">
-                <div class="stat-item">
-                    <span class="stat-number">{len(batchsize_plots)}</span>
-                    <span class="stat-label">Batch Size Plots</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number">{len(plots_data)}</span>
-                    <span class="stat-label">Total Plots</span>
-                </div>
-            </div>
         </div>
 
         <div class="content">
