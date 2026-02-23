@@ -74,7 +74,8 @@ def generate_index_html(plots_dir: Path, reports_dir: Path, output_file: Path):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graph Database Benchmark Visualizations</title>
+    <title>GDSE Benchmark</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📊</text></svg>">
     <style>
         * {{
             margin: 0;
